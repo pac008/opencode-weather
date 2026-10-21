@@ -2,7 +2,10 @@ import { homedir } from "os";
 import { join } from "path";
 import type { Config } from "../types/Config";
 
-export const CONFIG_PATH = join(homedir(), ".weather-cli.json");
+export const DEFAULT_CONFIG_PATH = join(homedir(), ".weather-cli.json");
+
+/** Permite redirigir el archivo de configuración (tests, sandboxes). */
+export const CONFIG_PATH_ENV_VAR = "WEATHER_CLI_CONFIG_PATH";
 
 export const DEFAULT_CONFIG: Config = {
   cities: [],

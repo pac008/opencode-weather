@@ -66,6 +66,34 @@ index.ts                    # Launcher: ejecuta main() de src/index.ts
 ```
 
 La configuración se guarda en `~/.weather-cli.json` y se accede siempre a través de `src/storage/`.
+La variable de entorno `WEATHER_CLI_CONFIG_PATH` permite usar otra ruta (la usan los tests para no tocar el archivo real).
+
+### Tests
+
+```bash
+bun test        # ejecuta la suite
+bun run verify  # tests + typecheck (es el gate)
+```
+
+La app **no se ejecuta si los tests fallan**: los scripts `start`, `dev` y `build` ejecutan `bun run verify` antes de arrancar
+(hooks `pre<script>` de Bun) y abortan con código de salida ≠ 0. Para compilar el binario:
+
+```bash
+bun run build   # compila ./weather solo si la suite está en verde
+```
+
+La suite vive en `tests/` y usa `bun:test` sin dependencias extra. Un archivo por módulo, siguiendo `src/`:
+
+```bash
+tests/
+├── helpers/        # Utilidades de test (stdin, fetch, consola, config temporal)
+├── utils/          # colors, format, constants
+├── api/            # geocoding, weather
+├── storage/        # configStorage, citiesStorage, settingsStorage
+├── presentation/   # input, output, menu
+├── actions/        # getWeather, addCity, removeCity, setDefaultCity, listCities, toggleUnits
+└── index.test.ts   # main()
+```
 
 ### Ejemplo del menú
 Esta es la apariencia que deseamos crear
