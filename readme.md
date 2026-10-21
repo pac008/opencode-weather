@@ -95,6 +95,35 @@ tests/
 └── index.test.ts   # main()
 ```
 
+### Releases
+
+Los binarios se publican en [GitHub Releases](https://github.com/pac008/opencode-weather/releases).
+
+1. Sube la versión en `package.json` (actualmente `0.1.0`).
+2. Haz `push` a `master` (o lanza el workflow manualmente desde Actions). Si los tests pasan, se crea el tag `v<version>` y el release con los binarios para:
+   - Linux x64 / ARM64
+   - macOS (Apple Silicon / Intel)
+   - Windows x64
+3. Descarga el `.tar.gz` (Linux/macOS) o `.zip` (Windows) correspondiente, compruébalo con `checksums.txt` y ejecútalo:
+
+```bash
+# Linux/macOS
+tar -xzf weather-v0.1.0-linux-x64.tar.gz
+chmod +x weather
+./weather
+
+# macOS (binario sin firmar)
+xattr -d com.apple.quarantine ./weather 2>/dev/null || true
+```
+
+```powershell
+# Windows
+Expand-Archive -Path weather-v0.1.0-windows-x64.zip -DestinationPath .
+.\weather.exe
+```
+
+Los binarios están comprimidos con gzip/zip para reducir el tamaño de descarga.
+
 ### Ejemplo del menú
 Esta es la apariencia que deseamos crear
 

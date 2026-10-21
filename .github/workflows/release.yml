@@ -1,0 +1,148 @@
+name: Release
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify (tests + typecheck)
+        run: bun run verify
+
+  build:
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: bun-linux-x64
+            artifact: weather-linux-x64
+            archive: tar.gz
+          - os: ubuntu-latest
+            target: bun-linux-arm64
+            artifact: weather-linux-arm64
+            archive: tar.gz
+          - os: macos-latest
+            target: bun-darwin-arm64
+            artifact: weather-darwin-arm64
+            archive: tar.gz
+          - os: macos-latest
+            target: bun-darwin-x64
+            artifact: weather-darwin-x64
+            archive: tar.gz
+          - os: windows-latest
+            target: bun-windows-x64
+            artifact: weather-windows-x64
+            archive: zip
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Read version
+        id: pkg
+        shell: bash
+        run: echo "version=$(node -e "console.log(require('./package.json').version)")" >> "$GITHUB_OUTPUT"
+
+      - name: Build binary
+        shell: bash
+        run: |
+          if [ "${{ matrix.archive }}" = "zip" ]; then
+            bun build ./index.ts --compile --target=${{ matrix.target }} --outfile weather.exe
+          else
+            bun build ./index.ts --compile --target=${{ matrix.target }} --outfile weather
+          fi
+
+      - name: Archive and compress
+        shell: bash
+        run: |
+          if [ "${{ matrix.archive }}" = "zip" ]; then
+            zip -9 ${{ matrix.artifact }}.zip weather.exe
+            echo "ASSET=${{ matrix.artifact }}.zip" >> "$GITHUB_ENV"
+          else
+            tar -czf ${{ matrix.artifact }}.tar.gz weather
+            echo "ASSET=${{ matrix.artifact }}.tar.gz" >> "$GITHUB_ENV"
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ env.ASSET }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version
+        id: pkg
+        run: echo "version=$(node -e "console.log(require('./package.json').version)")" >> "$GITHUB_OUTPUT"
+
+      - name: Check if tag exists
+        id: tag
+        run: |
+          TAG="v${{ steps.pkg.outputs.version }}"
+          if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q "${TAG}"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download artifacts
+        if: steps.tag.outputs.exists == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        if: steps.tag.outputs.exists == 'false'
+        run: |
+          cd dist
+          sha256sum *.tar.gz *.zip 2>/dev/null | tee checksums.txt
+
+      - name: Create tag and release
+        if: steps.tag.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.pkg.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${TAG}" -m "Release ${TAG}"
+          git push origin "${TAG}"
+          cd dist
+          gh release create "${TAG}" *.tar.gz *.zip checksums.txt --generate-notes

@@ -6,6 +6,7 @@
 - **Typecheck:** `bun check`.
 - **Verify (gate):** `bun run verify` = `bun run test && bun run typecheck`.
 - **Build executable:** `bun run build` → `bun build --compile index.ts --outfile weather`.
+- **Release:** bump `version` in `package.json` and push to `master` to trigger the GitHub Action that creates `v<version>` and publishes the compiled binaries. Manual trigger via `workflow_dispatch`.
 
 ## Gate
 - **`start`, `dev` and `build` do not run if the suite is red.** The `pre<script>` hooks (`prestart`, `predev`, `prebuild`) call `bun run verify` first and abort with a non-zero exit code.
@@ -19,11 +20,11 @@
 - **Config path:** `~/.weather-cli.json` by default; `WEATHER_CLI_CONFIG_PATH` overrides it (used by the tests to isolate the real file).
 - **APIs:** OpenMeteo Geocoding (`https://geocoding-api.open-meteo.com/v1/search`) and OpenMeteo Forecast (`https://api.open-meteo.com/v1/forecast`) (see `README.md` for exact query params). Use `fetch` with Bun.
 
-## Testing
-- **Suite:** `tests/` with `bun:test` (no extra dependencies). One file per module, mirroring `src/`.
-- **Boundaries, not module mocks:** `mock.module` is process-global and irreversible in Bun 1.4 — it poisons other test files. Control the real boundaries instead: stdin (`tests/helpers/stdin.ts`), `fetch` (`tests/helpers/fetchMock.ts`), stdout (`tests/helpers/captureConsole.ts`) and the config file (`tests/helpers/tempConfig.ts`).
-- **Isolation:** the config path points to a temp file (`WEATHER_CLI_CONFIG_PATH`); the real `~/.weather-cli.json` is never touched. `bunfig.toml` preloads `tests/helpers/setup.ts` to force `NO_COLOR=1` so text assertions are deterministic.
-- **New behaviour needs a test** in the matching `tests/` file.
+## Releases
+- **Trigger:** push to `master` or `workflow_dispatch`. The workflow runs `bun run verify` first; if tests fail, nothing is published.
+- **Tag/release:** created from `package.json` version as `v<version>` only if it does not exist yet (idempotent).
+- **Assets:** `weather-v<version>-<os>-<arch>.tar.gz` / `.zip`, plus `checksums.txt` (SHA256). Windows ships `weather.exe`.
+- **Permissions:** `contents: write` (job uses the default `GITHUB_TOKEN`). No third-party release actions.
 
 ## Conventions & Gotchas
 - **Runtime:** Bun + TypeScript (`@types/bun`, TypeScript ^7 peer). Prefer `bun` CLI over `node/npm`.
