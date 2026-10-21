@@ -29,6 +29,44 @@ https://api.open-meteo.com/v1/forecast?latitude=45.41117&longitude=-75.69812&cur
 bun init
 ```
 
+### Estructura del proyecto
+
+```bash
+src/
+├── actions/                # Acciones principales que puede ejecutar el usuario
+│   ├── getWeather.ts       # Clima actual de la ciudad default y de todas
+│   ├── addCity.ts          # Agregar una ciudad a la lista
+│   ├── removeCity.ts       # Eliminar una ciudad
+│   ├── setDefaultCity.ts   # Establecer la ciudad por defecto
+│   ├── listCities.ts       # Listar todas las ciudades guardadas
+│   └── toggleUnits.ts      # Cambiar entre °C y °F
+├── presentation/           # Todo lo relacionado con la interacción de consola/CLI
+│   ├── menu.ts             # Renderizado del menú y manejo de selección de opciones
+│   ├── output.ts           # Funciones para mostrar mensajes al usuario
+│   └── input.ts            # Funciones para capturar y validar inputs del usuario
+├── storage/                # Capa para leer, escribir y gestionar datos locales
+│   ├── configStorage.ts    # Lectura/escritura de ~/.weather-cli.json
+│   ├── citiesStorage.ts    # Persistencia de ciudades guardadas
+│   └── settingsStorage.ts  # Persistencia de configuración y preferencias
+├── types/                  # Tipos y contratos TypeScript usados globalmente
+│   ├── City.ts             # Definición de tipo City
+│   ├── Weather.ts          # Tipos para la respuesta del clima
+│   ├── Geocoding.ts        # Tipos para la respuesta del geocoding
+│   ├── Config.ts           # Formato del archivo de configuración
+│   └── MenuOption.ts       # Tipo para las opciones del menú
+├── api/                    # Integración con APIs externas (OpenMeteo, geocoding)
+│   ├── geocoding.ts        # Lógica para obtener coordenadas de una ciudad
+│   └── weather.ts          # Lógica para obtener el clima actual
+├── utils/                  # Utilidades y helpers reutilizables
+│   ├── format.ts           # Formateadores de datos (ciudad, temperatura)
+│   ├── constants.ts        # Constantes generales de la app
+│   └── colors.ts           # Definición y utilidades de colores para la consola
+└── index.ts                # Punto de entrada principal de la app CLI
+index.ts                    # Launcher: ejecuta main() de src/index.ts
+```
+
+La configuración se guarda en `~/.weather-cli.json` y se accede siempre a través de `src/storage/`.
+
 ### Ejemplo del menú
 Esta es la apariencia que deseamos crear
 
