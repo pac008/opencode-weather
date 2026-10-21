@@ -2,6 +2,19 @@ import { existsSync, readFileSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 
+const USE_COLOR =
+  process.env.NO_COLOR == null &&
+  process.env.TERM !== "dumb" &&
+  process.stdout.isTTY;
+
+const c = {
+  cyan: (s: string): string => (USE_COLOR ? `\x1b[36m${s}\x1b[0m` : s),
+  yellow: (s: string): string => (USE_COLOR ? `\x1b[33m${s}\x1b[0m` : s),
+  green: (s: string): string => (USE_COLOR ? `\x1b[32m${s}\x1b[0m` : s),
+  red: (s: string): string => (USE_COLOR ? `\x1b[31m${s}\x1b[0m` : s),
+  dim: (s: string): string => (USE_COLOR ? `\x1b[2m${s}\x1b[0m` : s),
+};
+
 interface City {
   name: string;
   country?: string;
@@ -62,7 +75,7 @@ function saveConfig(config: Config): void {
   try {
     writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), "utf-8");
   } catch (err) {
-    console.error("Error guardando configuración:", err);
+    console.error(c.red("Error guardando configuración:"), err);
   }
 }
 
@@ -109,19 +122,19 @@ async function getCurrentTemperature(city: City, units: Units): Promise<number |
 
 function printHeader(): void {
   console.log("═══════════════════════════════════════");
-  console.log("         WEATHER CLI");
+  console.log(c.cyan("         WEATHER CLI"));
   console.log("═══════════════════════════════════════");
 }
 
 function printMenu(config: Config): void {
   printHeader();
-  console.log(`  1. Clima de ciudad default`);
-  console.log(`  2. Clima de todas las ciudades (${config.cities.length})`);
-  console.log(`  3. Buscar y agregar ciudad`);
-  console.log(`  4. Eliminar ciudad`);
-  console.log(`  5. Establecer ciudad default`);
-  console.log(`  8. Ajustes (${config.units})`);
-  console.log(`  9. Salir`);
+  console.log(c.cyan(`  1. Clima de ciudad default`));
+  console.log(c.cyan(`  2. Clima de todas las ciudades (${config.cities.length})`));
+  console.log(c.cyan(`  3. Buscar y agregar ciudad`));
+  console.log(c.cyan(`  4. Eliminar ciudad`));
+  console.log(c.cyan(`  5. Establecer ciudad default`));
+  console.log(c.cyan(`  8. Ajustes (${config.units})`));
+  console.log(c.cyan(`  9. Salir`));
   console.log("═══════════════════════════════════════");
 }
 
@@ -139,7 +152,7 @@ function cityLabel(c: City): string {
 
 async function actionDefaultCity(config: Config): Promise<void> {
   if (!config.defaultCity) {
-    console.log("\nNo hay ciudad por defecto configurada.");
+    console.log(c.red("\nNo hay ciudad por defecto configurada."));
     const ans = await prompt("¿Quieres establecerla ahora? (s/n): ");
     if (ans.toLowerCase() === "s") {
       await actionSetDefault(config);
@@ -149,10 +162,10 @@ async function actionDefaultCity(config: Config): Promise<void> {
 
   const temp = await getCurrentTemperature(config.defaultCity, config.units);
   if (temp === null) {
-    console.log(`\nNo se pudo obtener el clima de ${cityLabel(config.defaultCity)}.`);
+    console.log(c.red(`\nNo se pudo obtener el clima de ${cityLabel(config.defaultCity)}.`));
     return;
   }
-  console.log(`\nClima de ${cityLabel(config.defaultCity)}: ${temp} ${config.units}`);
+  console.log(`\nClima de ${cityLabel(config.defaultCity)}: ${c.yellow(`${temp} ${config.units}`)}`);
 }
 
 async function actionAllCities(config: Config): Promise<void> {
@@ -164,12 +177,12 @@ async function actionAllCities(config: Config): Promise<void> {
   }
 
   console.log("\nClima de todas las ciudades:");
-  for (const c of config.cities) {
-    const temp = await getCurrentTemperature(c, config.units);
+  for (const city of config.cities) {
+    const temp = await getCurrentTemperature(city, config.units);
     if (temp === null) {
-      console.log(`- ${cityLabel(c)}: Error al obtener clima`);
+      console.log(`- ${cityLabel(city)}: ${c.red("Error al obtener clima")}`);
     } else {
-      console.log(`- ${cityLabel(c)}: ${temp} ${config.units}`);
+      console.log(`- ${cityLabel(city)}: ${c.yellow(`${temp} ${config.units}`)}`);
     }
   }
 }
@@ -177,20 +190,20 @@ async function actionAllCities(config: Config): Promise<void> {
 async function actionAddCity(config: Config): Promise<void> {
   const name = await prompt("Ingresa el nombre de la ciudad: ");
   if (!name) {
-    console.log("Nombre vacío. Cancelado.");
+    console.log(c.dim("Nombre vacío. Cancelado."));
     return;
   }
 
   const found = await geocodeCity(name);
   if (!found) {
-    console.log("No se encontró ninguna ciudad con ese nombre.");
+    console.log(c.red("No se encontró ninguna ciudad con ese nombre."));
     return;
   }
 
-  console.log(`\nEncontrado: ${cityLabel(found)} (${found.latitude}, ${found.longitude})`);
+  console.log(c.cyan(`\nEncontrado: ${cityLabel(found)} (${found.latitude}, ${found.longitude})`));
   const confirm = await prompt("¿Agregar esta ciudad? (s/n): ");
   if (confirm.toLowerCase() !== "s") {
-    console.log("Cancelado.");
+    console.log(c.dim("Cancelado."));
     return;
   }
 
@@ -199,7 +212,7 @@ async function actionAddCity(config: Config): Promise<void> {
     (c) => Math.abs(c.latitude - found.latitude) < 0.0001 && Math.abs(c.longitude - found.longitude) < 0.0001
   );
   if (exists) {
-    console.log("Esta ciudad ya está registrada.");
+    console.log(c.red("Esta ciudad ya está registrada."));
     return;
   }
 
@@ -210,14 +223,14 @@ async function actionAddCity(config: Config): Promise<void> {
   if (setDefault.toLowerCase() === "s") {
     config.defaultCity = found;
     saveConfig(config);
-    console.log("Ciudad por defecto establecida.");
+    console.log(c.green("Ciudad por defecto establecida."));
   }
-  console.log("Ciudad agregada correctamente.");
+  console.log(c.green("Ciudad agregada correctamente."));
 }
 
 async function actionDeleteCity(config: Config): Promise<void> {
   if (config.cities.length === 0) {
-    console.log("\nNo hay ciudades para eliminar.");
+    console.log(c.red("\nNo hay ciudades para eliminar."));
     return;
   }
 
@@ -229,7 +242,7 @@ async function actionDeleteCity(config: Config): Promise<void> {
   const sel = await prompt("Selecciona número a eliminar (0 para cancelar): ");
   const idx = parseInt(sel);
   if (Number.isNaN(idx) || idx < 1 || idx > config.cities.length) {
-    console.log("Cancelado.");
+    console.log(c.dim("Cancelado."));
     return;
   }
 
@@ -245,7 +258,7 @@ async function actionDeleteCity(config: Config): Promise<void> {
       }
     }
     saveConfig(config);
-    console.log(`Eliminado: ${cityLabel(removed)}`);
+    console.log(c.green(`Eliminado: ${cityLabel(removed)}`));
   } else {
     saveConfig(config);
   }
@@ -253,7 +266,7 @@ async function actionDeleteCity(config: Config): Promise<void> {
 
 async function actionSetDefault(config: Config): Promise<void> {
   if (config.cities.length === 0) {
-    console.log("\nNo hay ciudades registradas.");
+    console.log(c.red("\nNo hay ciudades registradas."));
     const ans = await prompt("¿Quieres agregar una ciudad? (s/n): ");
     if (ans.toLowerCase() === "s") await actionAddCity(config);
     return;
@@ -267,7 +280,7 @@ async function actionSetDefault(config: Config): Promise<void> {
   const sel = await prompt("Selecciona número (0 para cancelar): ");
   const idx = parseInt(sel);
   if (Number.isNaN(idx) || idx < 1 || idx > config.cities.length) {
-    console.log("Cancelado.");
+    console.log(c.dim("Cancelado."));
     return;
   }
 
@@ -275,14 +288,14 @@ async function actionSetDefault(config: Config): Promise<void> {
   config.defaultCity = selected;
   saveConfig(config);
   if (selected) {
-    console.log(`Ciudad por defecto: ${cityLabel(selected)}`);
+    console.log(c.green(`Ciudad por defecto: ${cityLabel(selected)}`));
   }
 }
 
 async function actionToggleUnits(config: Config): Promise<void> {
   config.units = config.units === "°C" ? "°F" : "°C";
   saveConfig(config);
-  console.log(`\nAjustes cambiados a ${config.units}`);
+  console.log(c.green(`\nAjustes cambiados a ${config.units}`));
 }
 
 async function main(): Promise<void> {
@@ -316,10 +329,10 @@ async function main(): Promise<void> {
         break;
       case "9":
         running = false;
-        console.log("¡Hasta luego!");
+        console.log(c.green("¡Hasta luego!"));
         break;
       default:
-        console.log("Opción inválida. Intenta de nuevo.");
+        console.log(c.red("Opción inválida. Intenta de nuevo."));
         break;
     }
 
